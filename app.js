@@ -4,7 +4,9 @@ const app = express();
 const ejs = require("ejs");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
-const md5 = require("md5");
+const bcrypt = require("bcrypt");
+const md5   = require("md5");
+const saltRounds = 10;
 
 app.use(express.static("public"));
 app.set("view engine", "ejs");
@@ -34,29 +36,36 @@ app.get("/register", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-    const newUser = new User({
+    bcrypt.hash(req.body.password, saltRounds, (e, hash) => {
+      const newUser = new User({
         email: req.body.username,
-        password: md5(req.body.password)
-    })
+        password: hash
+    });
     newUser.save((e) => {
         if(e)
             console.log(e);
         else
             res.render("secrets");
     }); 
+    });
 });
 
-app.post("/login", (req, res) => {
-  const username = req.body.username;
-  const password = md5(req.body.password);
-  User.findOne({email: username}, (e, foundUser) => {
-    if(e) console.log(e);
-    else if(foundUser)
-      if(foundUser.password === password)
-        res.render("secrets");
-  });
+  app.post("/login", (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
+    User.findOne({email: username}, (e, foundUser) => {
+      if(e) console.log(e);
+      else if(foundUser)
+        bcrypt.compare(password, foundUser.password, (e, result) => {
+            if(result === true)
+              res.render("secrets");
+        })
+    });
 });
 
 app.listen("8000", (e) => {
-  console.log(e);
+  if(e)
+    console.log(e);
+  else
+    console.log("Server started on Port 8000");
 });
